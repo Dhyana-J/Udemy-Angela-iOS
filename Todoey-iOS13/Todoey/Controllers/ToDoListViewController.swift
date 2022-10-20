@@ -9,9 +9,20 @@
 import UIKit
 import CoreData
 
+/*
+ CHALLENGE!!
+ 
+ item load request와 search load request에 카테고리 적용하는거 해결하자
+ */
+
 class ToDoListViewController: UITableViewController {
     
     var itemArray = [Item]()
+    var selectedCategory:Category? {
+        didSet {
+            loadItems()
+        }
+    }
     
     //    let defaults = UserDefaults.standard
     /* UserDefaults 사용하는 경우
@@ -19,7 +30,7 @@ class ToDoListViewController: UITableViewController {
      * plist파일 전부를 불러와야하므로, 데이터가 커지면 점점 부담이 커짐
      */
     
-//    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    //    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     
@@ -32,7 +43,6 @@ class ToDoListViewController: UITableViewController {
         //            itemArray = items
         //        }
         
-        loadItems()
     }
     
     
@@ -59,8 +69,8 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-//        context.delete(itemArray[indexPath.row]) //context delete method
-//        itemArray.remove(at: indexPath.row)
+        //        context.delete(itemArray[indexPath.row]) //context delete method
+        //        itemArray.remove(at: indexPath.row)
         
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
@@ -85,6 +95,7 @@ class ToDoListViewController: UITableViewController {
             let newItem = Item(context: self.context)
             newItem.title = textField.text!
             newItem.done = false
+            newItem.parentCategory = self.selectedCategory //datamodel relationship
             
             self.itemArray.append(newItem)
             
@@ -105,7 +116,6 @@ class ToDoListViewController: UITableViewController {
     }
     
     func saveItems(){
-        
         do{
             try context.save()
         }catch{
@@ -114,10 +124,21 @@ class ToDoListViewController: UITableViewController {
         tableView.reloadData()
     }
     
-    func loadItems(with request:NSFetchRequest<Item> = Item.fetchRequest()){ //default value
-        print(#function)
+    func loadItems(with request:NSFetchRequest<Item> = Item.fetchRequest(), predicate:NSPredicate? = nil){ //default value
         do {
+            let categoryPredicate = NSPredicate(format:"parentCategory == %@", selectedCategory!)
+            //            request.predicate = NSPredicate(format:"parentCategory.name MATCHES %@", selectedCategory!.name!) // 이것도 가능
+            
+            if let additionalPredicate = predicate {
+                request.predicate = NSCompoundPredicate(type: .and, subpredicates: [additionalPredicate, categoryPredicate])
+            } else {
+                request.predicate = categoryPredicate
+            }
+            
+            request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+            
             itemArray = try context.fetch(request)
+            
         } catch{
             print("Error fetching data from context \(error)")
         }
@@ -132,11 +153,9 @@ class ToDoListViewController: UITableViewController {
 extension ToDoListViewController:UISearchBarDelegate {
     
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        print(#function)
         let request : NSFetchRequest<Item> = Item.fetchRequest()
-        request.predicate = NSPredicate(format:"title CONTAINS[cd] %@", searchBar.text!)
-        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-        loadItems(with: request)
+        let searchPredicate = NSPredicate(format:"title CONTAINS[cd] %@", searchBar.text!)
+        loadItems(with: request, predicate: searchPredicate)
     }
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
