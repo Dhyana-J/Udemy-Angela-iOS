@@ -27,19 +27,32 @@ class CategoryViewController: UITableViewController {
     
     //MARK: - TableView DataSource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categories?.count ?? 1
+        if let count = categories?.count {
+            return count != 0 ? count : 1
+        } else {
+            return 1
+        }
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
-        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added Yet."
+        
+        if categories?.isEmpty == false, let category = categories?[indexPath.row] {
+            cell.textLabel?.text = category.name
+        } else {
+            cell.textLabel?.text = "No Categories Added"
+            cell.selectionStyle = UITableViewCell.SelectionStyle.none
+        }
         
         return cell
     }
     
     //MARK: - TableView Delegate Methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        performSegue(withIdentifier: "goToItems", sender: self)
+        
+        if categories?.isEmpty == false {
+            performSegue(withIdentifier: "goToItems", sender: self)
+        }
         
     }
     

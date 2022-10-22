@@ -32,20 +32,29 @@ class ToDoListViewController: UITableViewController {
     //MARK: - TableView Datasource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return todoItems?.count ?? 1
+        print(#function)
+        if let count = todoItems?.count {
+            print(count)
+            return count != 0 ? count : 1
+        } else {
+            print("count does not exist")
+            return 1
+        }
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        
+        print(#function)
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell",for:indexPath)
         
-        if let item = todoItems?[indexPath.row]{
+        if todoItems?.isEmpty == false, let item = todoItems?[indexPath.row]{
             cell.textLabel?.text = item.title // iOS 14부턴 contentConfiguration 사용해야
             
             cell.accessoryType = item.done ? .checkmark : .none
         } else {
             cell.textLabel?.text = "No Items Added"
+            cell.selectionStyle = UITableViewCell.SelectionStyle.none
         }
+        
         
         return cell
         
@@ -55,7 +64,7 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        if let item = todoItems?[indexPath.row] {
+        if todoItems?.isEmpty == false, let item = todoItems?[indexPath.row] {
             do {
                 try realm.write {
                     item.done = !item.done // UPDATE METHOD
@@ -115,7 +124,7 @@ class ToDoListViewController: UITableViewController {
     
     
     func loadItems(){
-        todoItems = selectedCategory?.items.sorted(byKeyPath: "title",ascending: true)
+        todoItems = selectedCategory?.items.sorted(byKeyPath: "title",ascending: true) // 알파벳 순서로 정렬
         tableView.reloadData()
     }
     
