@@ -7,41 +7,24 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
-/*
- CHALLENGE!!
- 
- item load request와 search load request에 카테고리 적용하는거 해결하자
- */
 
 class ToDoListViewController: UITableViewController {
     
-    var itemArray = [Item]()
+    var todoItems:Results<Item>?
+    var realm = try! Realm()
+    
     var selectedCategory:Category? {
         didSet {
             loadItems()
         }
     }
     
-    //    let defaults = UserDefaults.standard
-    /* UserDefaults 사용하는 경우
-     * 규모가 아주 작은 데이터를 저장하는데 적합하다. [ ex)volume status(on,off,high,low), top score, player nickname, etc.. ]
-     * plist파일 전부를 불러와야하므로, 데이터가 커지면 점점 부담이 커짐
-     */
-    
-    //    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-    
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        
         print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
-        //        if let items = defaults.array(forKey: "TodoListArray") as? [Item] { // UserDefaults 관련 코드
-        //            itemArray = items
-        //        }
         
     }
     
@@ -49,17 +32,20 @@ class ToDoListViewController: UITableViewController {
     //MARK: - TableView Datasource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return itemArray.count
+        return todoItems?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let item = itemArray[indexPath.row]
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell",for:indexPath)
         
-        cell.textLabel?.text = item.title // iOS 14부턴 contentConfiguration 사용해야
-        
-        cell.accessoryType = itemArray[indexPath.row].done ? .checkmark : .none
+        if let item = todoItems?[indexPath.row]{
+            cell.textLabel?.text = item.title // iOS 14부턴 contentConfiguration 사용해야
+            
+            cell.accessoryType = item.done ? .checkmark : .none
+        } else {
+            cell.textLabel?.text = "No Items Added"
+        }
         
         return cell
         
@@ -69,13 +55,18 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        //        context.delete(itemArray[indexPath.row]) //context delete method
-        //        itemArray.remove(at: indexPath.row)
+        if let item = todoItems?[indexPath.row] {
+            do {
+                try realm.write {
+                    item.done = !item.done // UPDATE METHOD
+//                    realm.delete(item) // DELETE METHOD
+                }
+            } catch {
+                print("Error saving done status : \(error)")
+            }
+        }
         
-        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
-        
-        
-        saveItems()
+        tableView.reloadData()
         
         tableView.deselectRow(at: indexPath, animated: true)
     }
@@ -90,18 +81,23 @@ class ToDoListViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add Item", style: .default) { action in
             //what will happen once the user clicks the Add item button on our UIAlert
-            print("Add Item Pressed")
             
-            let newItem = Item(context: self.context)
-            newItem.title = textField.text!
-            newItem.done = false
-            newItem.parentCategory = self.selectedCategory //datamodel relationship
+            // ----- Lecture 263.Challenge 여기에 Realm을 통한 아이템 추가 메서드 구현하기.
+            if let currentCategory = self.selectedCategory {
+                do {
+                    try self.realm.write {
+                        let newItem = Item()
+                        newItem.title = textField.text!
+                        currentCategory.items.append(newItem)
+                        //            self.save(item: newItem) // 필요없다. Category처럼 realm.add로 하는게 아니라, category와 linking되어있으므로, 그냥 append를 통해 추가가 가능하다.
+                    }
+                } catch {
+                    print("Error saving context \(error)")
+                }
+            }
             
-            self.itemArray.append(newItem)
             
-            //self.defaults.set(self.itemArray, forKey: "TodoListArray") // UserDefaults 관련 코드
-            
-            self.saveItems()
+            self.tableView.reloadData()
             
         }
         
@@ -115,33 +111,11 @@ class ToDoListViewController: UITableViewController {
         self.present(alert, animated: true, completion: nil)
     }
     
-    func saveItems(){
-        do{
-            try context.save()
-        }catch{
-            print("Error saving context \(error)")
-        }
-        tableView.reloadData()
-    }
     
-    func loadItems(with request:NSFetchRequest<Item> = Item.fetchRequest(), predicate:NSPredicate? = nil){ //default value
-        do {
-            let categoryPredicate = NSPredicate(format:"parentCategory == %@", selectedCategory!)
-            //            request.predicate = NSPredicate(format:"parentCategory.name MATCHES %@", selectedCategory!.name!) // 이것도 가능
-            
-            if let additionalPredicate = predicate {
-                request.predicate = NSCompoundPredicate(type: .and, subpredicates: [additionalPredicate, categoryPredicate])
-            } else {
-                request.predicate = categoryPredicate
-            }
-            
-            request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-            
-            itemArray = try context.fetch(request)
-            
-        } catch{
-            print("Error fetching data from context \(error)")
-        }
+    
+    func loadItems(){
+        todoItems = selectedCategory?.items.sorted(byKeyPath: "title",ascending: true)
+        
         tableView.reloadData()
     }
     
@@ -150,24 +124,24 @@ class ToDoListViewController: UITableViewController {
 
 
 //MARK: - Search Bar Methods
-extension ToDoListViewController:UISearchBarDelegate {
-    
-    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        let request : NSFetchRequest<Item> = Item.fetchRequest()
-        let searchPredicate = NSPredicate(format:"title CONTAINS[cd] %@", searchBar.text!)
-        loadItems(with: request, predicate: searchPredicate)
-    }
-    
-    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        print(#function)
-        if searchBar.text!.count == 0 {
-            loadItems()
-            DispatchQueue.main.async {
-                searchBar.resignFirstResponder()
-            }
-            
-        }
-    }
-    
-}
+//extension ToDoListViewController:UISearchBarDelegate {
+//
+//    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+//        let request : NSFetchRequest<Item> = Item.fetchRequest()
+//        let searchPredicate = NSPredicate(format:"title CONTAINS[cd] %@", searchBar.text!)
+//        loadItems(with: request, predicate: searchPredicate)
+//    }
+//
+//    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+//        print(#function)
+//        if searchBar.text!.count == 0 {
+//            loadItems()
+//            DispatchQueue.main.async {
+//                searchBar.resignFirstResponder()
+//            }
+//
+//        }
+//    }
+//
+//}
 
