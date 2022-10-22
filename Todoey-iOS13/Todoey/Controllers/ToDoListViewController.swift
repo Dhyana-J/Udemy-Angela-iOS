@@ -88,6 +88,7 @@ class ToDoListViewController: UITableViewController {
                     try self.realm.write {
                         let newItem = Item()
                         newItem.title = textField.text!
+                        newItem.dateCreated = Date()
                         currentCategory.items.append(newItem)
                         //            self.save(item: newItem) // 필요없다. Category처럼 realm.add로 하는게 아니라, category와 linking되어있으므로, 그냥 append를 통해 추가가 가능하다.
                     }
@@ -115,7 +116,6 @@ class ToDoListViewController: UITableViewController {
     
     func loadItems(){
         todoItems = selectedCategory?.items.sorted(byKeyPath: "title",ascending: true)
-        
         tableView.reloadData()
     }
     
@@ -124,24 +124,23 @@ class ToDoListViewController: UITableViewController {
 
 
 //MARK: - Search Bar Methods
-//extension ToDoListViewController:UISearchBarDelegate {
-//
-//    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-//        let request : NSFetchRequest<Item> = Item.fetchRequest()
-//        let searchPredicate = NSPredicate(format:"title CONTAINS[cd] %@", searchBar.text!)
-//        loadItems(with: request, predicate: searchPredicate)
-//    }
-//
-//    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-//        print(#function)
-//        if searchBar.text!.count == 0 {
-//            loadItems()
-//            DispatchQueue.main.async {
-//                searchBar.resignFirstResponder()
-//            }
-//
-//        }
-//    }
-//
-//}
+extension ToDoListViewController:UISearchBarDelegate {
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        todoItems = selectedCategory?.items.filter(NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)).sorted(byKeyPath: "dateCreated", ascending:false) // 가장 최근 날짜일수록 가장 큰값이라 descending하면 최근날짜가 위에옴
+        tableView.reloadData()
+    }
+
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        print(#function)
+        if searchBar.text!.count == 0 {
+            loadItems()
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+
+        }
+    }
+
+}
 
