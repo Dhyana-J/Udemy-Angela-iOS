@@ -10,10 +10,12 @@ import UIKit
 import RealmSwift
 
 
-class ToDoListViewController: UITableViewController {
+// Problem need to solve! : 상위 카테고리가 지워지면 하위 아이템들도 지워지도록 하는 작업 필요. 상위 카테고리 지우면 고아가 됨. UI상으로 지울 수 있는 방법이 없다.
+
+class ToDoListViewController: SwipeTableViewController {
     
-    var todoItems:Results<Item>?
-    var realm = try! Realm()
+    var todoListItems:Results<Item>?
+    let realm = try! Realm()
     
     var selectedCategory:Category? {
         didSet {
@@ -23,9 +25,8 @@ class ToDoListViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
-        
+        super.toDoListDelegate = self
+//        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
     }
     
     
@@ -33,28 +34,24 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         print(#function)
-        if let count = todoItems?.count {
-            print(count)
+        if let count = todoListItems?.count {
             return count != 0 ? count : 1
         } else {
-            print("count does not exist")
             return 1
         }
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         print(#function)
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell",for:indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
-        if todoItems?.isEmpty == false, let item = todoItems?[indexPath.row]{
+        if todoListItems?.isEmpty == false, let item = todoListItems?[indexPath.row]{
             cell.textLabel?.text = item.title // iOS 14부턴 contentConfiguration 사용해야
-            
             cell.accessoryType = item.done ? .checkmark : .none
         } else {
             cell.textLabel?.text = "No Items Added"
             cell.selectionStyle = UITableViewCell.SelectionStyle.none
         }
-        
         
         return cell
         
@@ -64,7 +61,7 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        if todoItems?.isEmpty == false, let item = todoItems?[indexPath.row] {
+        if todoListItems?.isEmpty == false, let item = todoListItems?[indexPath.row] {
             do {
                 try realm.write {
                     item.done = !item.done // UPDATE METHOD
@@ -80,7 +77,7 @@ class ToDoListViewController: UITableViewController {
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
-    //MARK: - Add New Items
+    //MARK: - Data Manipulation Methods
     
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         
@@ -124,8 +121,22 @@ class ToDoListViewController: UITableViewController {
     
     
     func loadItems(){
-        todoItems = selectedCategory?.items.sorted(byKeyPath: "title",ascending: true) // 알파벳 순서로 정렬
+        todoListItems = selectedCategory?.items.sorted(byKeyPath: "title",ascending: true) // 알파벳 순서로 정렬
         tableView.reloadData()
+    }
+    
+    
+    override func updateModel(at indexPath: IndexPath) {
+        if self.todoListItems?.isEmpty == false, let todoListItemForDeletion = self.todoListItems?[indexPath.row] {
+            do {
+                try self.realm.write{
+                    self.realm.delete(todoListItemForDeletion)
+                }
+            } catch {
+                print("Error deleting category: \(error)")
+            }
+            tableView.reloadData()
+        }
     }
     
     
@@ -136,7 +147,7 @@ class ToDoListViewController: UITableViewController {
 extension ToDoListViewController:UISearchBarDelegate {
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        todoItems = selectedCategory?.items.filter(NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)).sorted(byKeyPath: "dateCreated", ascending:false) // 가장 최근 날짜일수록 가장 큰값이라 descending하면 최근날짜가 위에옴
+        todoListItems = selectedCategory?.items.filter(NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)).sorted(byKeyPath: "dateCreated", ascending:false) // 가장 최근 날짜일수록 가장 큰값이라 descending하면 최근날짜가 위에옴
         tableView.reloadData()
     }
 

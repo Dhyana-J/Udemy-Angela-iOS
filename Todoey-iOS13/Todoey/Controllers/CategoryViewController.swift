@@ -10,32 +10,38 @@ import UIKit
 import RealmSwift
 
 
-class CategoryViewController: UITableViewController {
+class CategoryViewController: SwipeTableViewController {
     
     let realm = try! Realm()
     
-    
     var categories:Results<Category>?
     
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         loadCategories()
+        super.categoryDelegate = self   
     }
-
+    
     
     
     //MARK: - TableView DataSource Methods
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        print(#function)
         if let count = categories?.count {
             return count != 0 ? count : 1
         } else {
             return 1
         }
+        
     }
     
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
+        print(#function)
+        
+        let cell = super.tableView(tableView, cellForRowAt: indexPath) // Swipe Cell
         
         if categories?.isEmpty == false, let category = categories?[indexPath.row] {
             cell.textLabel?.text = category.name
@@ -45,15 +51,15 @@ class CategoryViewController: UITableViewController {
         }
         
         return cell
+        
     }
+    
     
     //MARK: - TableView Delegate Methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        
         if categories?.isEmpty == false {
             performSegue(withIdentifier: "goToItems", sender: self)
         }
-        
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -83,6 +89,21 @@ class CategoryViewController: UITableViewController {
         categories = realm.objects(Category.self)
     }
     
+    //MARK: - Delete Data From Swipe
+    override func updateModel(at indexPath: IndexPath) {
+        if self.categories?.isEmpty == false, let categoryForDeletion = self.categories?[indexPath.row] {
+            
+            do {
+                try self.realm.write{
+                    self.realm.delete(categoryForDeletion)
+                }
+            } catch {
+                print("Error deleting category: \(error)")
+            }
+            tableView.reloadData()
+        }
+    }
+    
     //MARK: - Add new Category
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         
@@ -110,6 +131,10 @@ class CategoryViewController: UITableViewController {
     
     
     
-
+    
 }
+
+
+
+
 
