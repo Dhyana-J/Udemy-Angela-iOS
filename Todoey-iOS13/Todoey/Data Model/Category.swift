@@ -11,5 +11,6 @@ import RealmSwift
 
 class Category: Object {
     @objc dynamic var name:String = ""
+    @objc dynamic var backgroundColor:String = "#FFFFFF"
     let items = List<Item>() // List 자료형은 Realm에서옴
 }

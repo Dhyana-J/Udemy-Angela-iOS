@@ -39,9 +39,6 @@ class SwipeTableViewController: UITableViewController, SwipeTableViewCellDelegat
     
     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> [SwipeAction]? {
         
-        print(#function)
-        
-        
         // placeholder 역할 row는 스와이프 안되도록 설정
         if (categoryDelegate?.categories != nil && categoryDelegate?.categories?.count == 0)
             ||

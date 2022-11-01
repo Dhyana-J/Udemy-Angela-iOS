@@ -8,6 +8,7 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
 
 // Problem need to solve! : 상위 카테고리가 지워지면 하위 아이템들도 지워지도록 하는 작업 필요. 상위 카테고리 지우면 고아가 됨. UI상으로 지울 수 있는 방법이 없다.
@@ -26,6 +27,8 @@ class ToDoListViewController: SwipeTableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         super.toDoListDelegate = self
+        tableView.separatorStyle = .none
+        
 //        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
     }
     
@@ -33,7 +36,6 @@ class ToDoListViewController: SwipeTableViewController {
     //MARK: - TableView Datasource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        print(#function)
         if let count = todoListItems?.count {
             return count != 0 ? count : 1
         } else {
@@ -42,12 +44,19 @@ class ToDoListViewController: SwipeTableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        print(#function)
         let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if todoListItems?.isEmpty == false, let item = todoListItems?[indexPath.row]{
             cell.textLabel?.text = item.title // iOS 14부턴 contentConfiguration 사용해야
             cell.accessoryType = item.done ? .checkmark : .none
+            
+            let darkenPercentage = CGFloat(indexPath.row) / CGFloat(todoListItems!.count)
+            if let color = UIColor(hexString: selectedCategory!.backgroundColor)?.darken(byPercentage:darkenPercentage) {
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
+            
+            
         } else {
             cell.textLabel?.text = "No Items Added"
             cell.selectionStyle = UITableViewCell.SelectionStyle.none
@@ -152,7 +161,6 @@ extension ToDoListViewController:UISearchBarDelegate {
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        print(#function)
         if searchBar.text!.count == 0 {
             loadItems()
             DispatchQueue.main.async {
